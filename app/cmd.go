@@ -24,6 +24,7 @@ const (
 	CmdExit = "exit"
 	CmdEcho = "echo"
 	CmdType = "type"
+	CmdPwd  = "pwd"
 )
 
 func handleCmd(cmd string, args ...string) error {
@@ -34,6 +35,8 @@ func handleCmd(cmd string, args ...string) error {
 		return handleEcho(args...)
 	case CmdType:
 		return handleType(args...)
+	case CmdPwd:
+		return handlePwd(args...)
 	default:
 		if path := searchPathFor(cmd); path != "" {
 			return runExecutable(path, args...)
@@ -77,6 +80,20 @@ func handleType(args ...string) error {
 
 		fmt.Printf("%s: not found\n", cmd)
 	}
+	return nil
+}
+
+func handlePwd(args ...string) error {
+	if len(args) > 0 {
+		return errors.New("too many arguments")
+	}
+
+	pwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	fmt.Println(pwd)
 	return nil
 }
 
