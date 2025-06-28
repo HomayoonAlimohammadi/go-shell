@@ -8,6 +8,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 var (
@@ -91,12 +92,8 @@ func handlePwd(args ...string) error {
 		return errors.New("too many arguments")
 	}
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	fmt.Println(pwd)
+	wd, _ := os.Getwd()
+	fmt.Println(wd)
 	return nil
 }
 
@@ -111,18 +108,15 @@ func handleCd(args ...string) error {
 			return fmt.Errorf("failed to get home directory: %w", err)
 		}
 
-		if err := os.Chdir(homeDir); err != nil {
-			pErr := err.(*os.PathError)
-			return pErr.Err
-		}
-		return nil
+		return syscall.Chdir(homeDir)
 	}
 
-	if err := os.Chdir(args[0]); err != nil {
-		pErr := err.(*os.PathError)
-		return pErr.Err
+	dir := args[0]
+	if dir == "~" {
+		dir = os.Getenv("HOME")
 	}
-	return nil
+
+	return syscall.Chdir(dir)
 }
 
 func searchPathFor(executable string) string {

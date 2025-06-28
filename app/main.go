@@ -34,8 +34,9 @@ func printContext() {
 	if user == "" {
 		user = "user"
 	}
+
 	wd, _ := os.Getwd()
-	hd, _ := os.UserHomeDir()
+	hd := os.Getenv("HOME")
 	if strings.HasPrefix(wd, hd) {
 		wd = "~" + wd[len(hd):]
 	}
