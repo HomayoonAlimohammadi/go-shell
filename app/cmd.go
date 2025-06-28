@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -58,9 +59,32 @@ func handleType(args ...string) error {
 	for _, cmd := range args {
 		if _, ok := builtins[cmd]; ok {
 			fmt.Printf("%s is a shell builtin\n", cmd)
-		} else {
-			fmt.Printf("%s: not found\n", cmd)
+			continue
 		}
+
+		if path := searchPathFor(cmd); path != "" {
+			fmt.Printf("%s is %s\n", cmd, path)
+			continue
+		}
+
+		fmt.Printf("%s: not found\n", cmd)
 	}
 	return nil
+}
+
+func searchPathFor(executable string) string {
+	pathEnv := os.Getenv("PATH")
+	if pathEnv == "" {
+		return ""
+	}
+
+	for dir := range strings.SplitSeq(pathEnv, ":") {
+		fullPath := path.Join(dir, executable)
+		if info, err := os.Stat(fullPath); err == nil {
+			if info.Mode()&0111 != 0 { // Check if any execute bit is set
+				return fullPath
+			}
+		}
+	}
+	return ""
 }
