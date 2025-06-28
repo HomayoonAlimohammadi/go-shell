@@ -25,6 +25,7 @@ const (
 	CmdEcho = "echo"
 	CmdType = "type"
 	CmdPwd  = "pwd"
+	CmdCd   = "cd"
 )
 
 func handleCmd(cmd string, args ...string) error {
@@ -37,6 +38,8 @@ func handleCmd(cmd string, args ...string) error {
 		return handleType(args...)
 	case CmdPwd:
 		return handlePwd(args...)
+	case CmdCd:
+		return handleCd(args...)
 	default:
 		if path := searchPathFor(cmd); path != "" {
 			return runExecutable(path, args...)
@@ -94,6 +97,31 @@ func handlePwd(args ...string) error {
 	}
 
 	fmt.Println(pwd)
+	return nil
+}
+
+func handleCd(args ...string) error {
+	if len(args) > 1 {
+		return errors.New("too many arguments")
+	}
+
+	if len(args) == 0 {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
+
+		if err := os.Chdir(homeDir); err != nil {
+			pErr := err.(*os.PathError)
+			return pErr.Err
+		}
+		return nil
+	}
+
+	if err := os.Chdir(args[0]); err != nil {
+		pErr := err.(*os.PathError)
+		return pErr.Err
+	}
 	return nil
 }
 

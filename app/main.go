@@ -35,5 +35,10 @@ func printContext() {
 		user = "user"
 	}
 	wd, _ := os.Getwd()
+	hd, _ := os.UserHomeDir()
+	if strings.HasPrefix(wd, hd) {
+		wd = "~" + wd[len(hd):]
+	}
+
 	fmt.Printf("%s@go-shell:%s$ ", user, wd)
 }
