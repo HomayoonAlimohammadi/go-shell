@@ -1,0 +1,17 @@
+#!/bin/bash
+
+echo "Program was passed $# args (including program name)."
+echo "Arg #0 (program name): $(basename "$0")"
+for i in $(seq 1 $#); do
+	echo "Arg #$i: ${!i}"
+done
+
+# Calculate a simple hash-like signature from all arguments
+signature=0
+for arg in "$0" "$@"; do
+	for ((i=0; i<${#arg}; i++)); do
+		char=$(printf "%d" "'${arg:$i:1}")
+		signature=$((signature + char))
+	done
+done
+echo "Program Signature: $signature"

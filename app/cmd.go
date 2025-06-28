@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -34,6 +36,9 @@ func handleCmd(cmd string, args ...string) error {
 	case CmdType:
 		return handleType(args...)
 	default:
+		if path := searchPathFor(cmd); path != "" {
+			return runExecutable(path, args...)
+		}
 		return ErrNotFound
 	}
 }
@@ -79,12 +84,23 @@ func searchPathFor(executable string) string {
 	}
 
 	for dir := range strings.SplitSeq(pathEnv, ":") {
-		fullPath := path.Join(dir, executable)
-		if info, err := os.Stat(fullPath); err == nil {
+		relPath := path.Join(dir, executable)
+		if info, err := os.Stat(relPath); err == nil {
 			if info.Mode()&0111 != 0 { // Check if any execute bit is set
-				return fullPath
+				abs, err := filepath.Abs(relPath)
+				if err != nil {
+					return relPath
+				}
+				return abs
 			}
 		}
 	}
 	return ""
+}
+
+func runExecutable(path string, args ...string) error {
+	cmd := exec.Command(path, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
