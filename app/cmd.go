@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -61,6 +60,10 @@ func handleEcho(args ...string) error {
 }
 
 func handleType(args ...string) error {
+	if len(args) == 0 {
+		return errors.New("not enough arguments")
+	}
+
 	for _, cmd := range args {
 		if _, ok := builtins[cmd]; ok {
 			fmt.Printf("%s is a shell builtin\n", cmd)
@@ -86,20 +89,16 @@ func searchPathFor(executable string) string {
 	for dir := range strings.SplitSeq(pathEnv, ":") {
 		relPath := path.Join(dir, executable)
 		if info, err := os.Stat(relPath); err == nil {
-			if info.Mode()&0111 != 0 { // Check if any execute bit is set
-				abs, err := filepath.Abs(relPath)
-				if err != nil {
-					return relPath
-				}
-				return abs
+			if info.Mode()&0111 != 0 {
+				return relPath
 			}
 		}
 	}
 	return ""
 }
 
-func runExecutable(path string, args ...string) error {
-	cmd := exec.Command(path, args...)
+func runExecutable(fullPath string, args ...string) error {
+	cmd := exec.Command(fullPath, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
