@@ -7,8 +7,15 @@ import (
 )
 
 func main() {
-	fmt.Fprint(os.Stdout, "$ ")
+	fmt.Print("$ ")
 
-	// Wait for user input
-	bufio.NewReader(os.Stdin).ReadString('\n')
+	cmd, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		fmt.Printf("failed to read command: %s", err)
+	}
+
+	cmd = cmd[:len(cmd)-1]
+	if err := handleCmd(cmd); err != nil {
+		fmt.Printf("%s: %s", cmd, err)
+	}
 }
