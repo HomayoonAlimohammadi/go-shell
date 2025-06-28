@@ -9,7 +9,7 @@ import (
 
 func main() {
 	for {
-		fmt.Print("$ ")
+		printContext()
 
 		cmdLine, err := bufio.NewReader(os.Stdin).ReadString('\n')
 		if err != nil {
@@ -27,4 +27,13 @@ func main() {
 			fmt.Printf("%s: %s\n", cmdLine, err)
 		}
 	}
+}
+
+func printContext() {
+	user := os.Getenv("USER")
+	if user == "" {
+		user = "user"
+	}
+	wd, _ := os.Getwd()
+	fmt.Printf("%s@go-shell:%s$ ", user, wd)
 }
