@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 var (
@@ -13,12 +14,15 @@ var (
 
 const (
 	CmdExit = "exit"
+	CmdEcho = "echo"
 )
 
 func handleCmd(cmd string, args ...string) error {
 	switch cmd {
 	case CmdExit:
 		return handleExit(args...)
+	case CmdEcho:
+		return handleEcho(args...)
 	default:
 		return ErrNotFound
 	}
@@ -33,5 +37,10 @@ func handleExit(args ...string) error {
 		}
 	}
 	os.Exit(code)
+	return nil
+}
+
+func handleEcho(args ...string) error {
+	fmt.Println(strings.Join(args, " "))
 	return nil
 }
