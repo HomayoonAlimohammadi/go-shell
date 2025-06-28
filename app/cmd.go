@@ -14,9 +14,9 @@ var (
 	ErrNotFound = errors.New("command not found")
 
 	builtins = map[string]struct{}{
-		CmdExit: struct{}{},
-		CmdEcho: struct{}{},
-		CmdType: struct{}{},
+		CmdExit: {},
+		CmdEcho: {},
+		CmdType: {},
 	}
 )
 
@@ -97,8 +97,8 @@ func searchPathFor(executable string) string {
 	return ""
 }
 
-func runExecutable(fullPath string, args ...string) error {
-	cmd := exec.Command(fullPath, args...)
+func runExecutable(path string, args ...string) error {
+	cmd := exec.Command(path, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
