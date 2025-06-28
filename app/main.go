@@ -13,7 +13,11 @@ func main() {
 
 		cmdLine, err := bufio.NewReader(os.Stdin).ReadString('\n')
 		if err != nil {
-			fmt.Printf("failed to read command: %s", err)
+			fmt.Printf("failed to read command: %s\n", err)
+		}
+
+		if len(cmdLine) == 0 || cmdLine == "\n" {
+			continue
 		}
 
 		cmdLine = cmdLine[:len(cmdLine)-1]

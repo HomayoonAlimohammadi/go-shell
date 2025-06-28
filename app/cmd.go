@@ -10,11 +10,18 @@ import (
 
 var (
 	ErrNotFound = errors.New("command not found")
+
+	builtins = map[string]struct{}{
+		CmdExit: struct{}{},
+		CmdEcho: struct{}{},
+		CmdType: struct{}{},
+	}
 )
 
 const (
 	CmdExit = "exit"
 	CmdEcho = "echo"
+	CmdType = "type"
 )
 
 func handleCmd(cmd string, args ...string) error {
@@ -23,6 +30,8 @@ func handleCmd(cmd string, args ...string) error {
 		return handleExit(args...)
 	case CmdEcho:
 		return handleEcho(args...)
+	case CmdType:
+		return handleType(args...)
 	default:
 		return ErrNotFound
 	}
@@ -42,5 +51,16 @@ func handleExit(args ...string) error {
 
 func handleEcho(args ...string) error {
 	fmt.Println(strings.Join(args, " "))
+	return nil
+}
+
+func handleType(args ...string) error {
+	for _, cmd := range args {
+		if _, ok := builtins[cmd]; ok {
+			fmt.Printf("%s is a shell builtin\n", cmd)
+		} else {
+			fmt.Printf("%s: not found\n", cmd)
+		}
+	}
 	return nil
 }
