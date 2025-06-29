@@ -30,7 +30,7 @@ func NewRedirector(typ redirType, op redirOp, dest string) (*redirector, error) 
 	switch op {
 	case RedirOpRedir:
 		var err error
-		file, err = os.OpenFile(dest, os.O_WRONLY|os.O_CREATE, 0644)
+		file, err = os.OpenFile(dest, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open %q for write: %w", dest, err)
 		}
@@ -69,11 +69,14 @@ func (r *redirector) StderrWriter() io.Writer {
 	return os.Stderr
 }
 
-func (r *redirector) Close() {
-	r.f.Close()
+func (r *redirector) Close() error {
+	if r.f != nil {
+		return r.f.Close()
+	}
+	return nil
 }
 
-func buildRedirector(parts []string) ([]string, *redirector) {
+func splitPartsAndRedir(parts []string) ([]string, *redirector) {
 	if len(parts) < 3 {
 		return parts, NewStdRedirector()
 	}

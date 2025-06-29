@@ -22,24 +22,14 @@ func main() {
 
 		line = line[:len(line)-1]
 
-		parts := splitLine(line)
-		// h, err := NewCommandHandler(parts)
-		// if err != nil {
-		// 	fmt.Fprintln(os.Stderr, err)
-		// }
+		lineParts := splitLine(line)
+		cmdParts, redir := splitPartsAndRedir(lineParts)
+		h := NewCommandHandler(cmdParts, redir)
 
-		// if err := h.Handle(); err != nil {
-		// 	fmt.Fprintln(os.Stderr, err)
-		// }
-
-		parts, redir := buildRedirector(parts)
-		cmd, args := parts[0], parts[1:]
-
-		if err := handleCmd(redir.StdoutWriter(), redir.StderrWriter(), cmd, args...); err != nil {
-			fmt.Fprintln(redir.StderrWriter(), err)
+		if err := h.Handle(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
 
-		redir.Close()
 	}
 }
 
