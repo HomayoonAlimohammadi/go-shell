@@ -46,20 +46,29 @@ func printContext() {
 
 func splitLine(l string) []string {
 	var (
-		parts   []string
-		part    string
-		inQuote bool
+		parts         []string
+		part          string
+		inSingleQuote bool
+		inDoubleQuote bool
 	)
 	for _, b := range l {
-		if string(b) == "'" {
-			if inQuote {
-				inQuote = false
+		if string(b) == "'" && !inDoubleQuote {
+			if inSingleQuote {
+				inSingleQuote = false
 				parts = append(parts, part)
 				part = ""
 			} else {
-				inQuote = true
+				inSingleQuote = true
 			}
-		} else if b == ' ' && !inQuote {
+		} else if string(b) == "\"" && !inSingleQuote {
+			if inDoubleQuote {
+				inDoubleQuote = false
+				parts = append(parts, part)
+				part = ""
+			} else {
+				inDoubleQuote = true
+			}
+		} else if b == ' ' && !inSingleQuote && !inDoubleQuote {
 			if len(part) > 0 {
 				parts = append(parts, part)
 				part = ""
