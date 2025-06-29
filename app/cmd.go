@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -29,27 +30,27 @@ const (
 	CmdCd   = "cd"
 )
 
-func handleCmd(cmd string, args ...string) error {
+func handleCmd(stdout io.Writer, stderr io.Writer, cmd string, args ...string) error {
 	switch cmd {
 	case CmdExit:
-		return handleExit(args...)
+		return handleExit(stdout, args...)
 	case CmdEcho:
-		return handleEcho(args...)
+		return handleEcho(stdout, args...)
 	case CmdType:
-		return handleType(args...)
+		return handleType(stdout, args...)
 	case CmdPwd:
-		return handlePwd(args...)
+		return handlePwd(stdout, args...)
 	case CmdCd:
-		return handleCd(args...)
+		return handleCd(stdout, args...)
 	default:
 		if path := searchPathFor(cmd); path != "" {
-			return runExecutable(path, args...)
+			return runExecutable(stdout, stderr, path, args...)
 		}
 		return ErrNotFound
 	}
 }
 
-func handleExit(args ...string) error {
+func handleExit(out io.Writer, args ...string) error {
 	code := 0
 	if len(args) > 0 {
 		var err error
@@ -61,43 +62,43 @@ func handleExit(args ...string) error {
 	return nil
 }
 
-func handleEcho(args ...string) error {
-	fmt.Println(strings.Join(args, " "))
+func handleEcho(out io.Writer, args ...string) error {
+	fmt.Fprintln(out, strings.Join(args, " "))
 	return nil
 }
 
-func handleType(args ...string) error {
+func handleType(out io.Writer, args ...string) error {
 	if len(args) == 0 {
 		return errors.New("not enough arguments")
 	}
 
 	for _, cmd := range args {
 		if _, ok := builtins[cmd]; ok {
-			fmt.Printf("%s is a shell builtin\n", cmd)
+			fmt.Fprintf(out, "%s is a shell builtin\n", cmd)
 			continue
 		}
 
 		if path := searchPathFor(cmd); path != "" {
-			fmt.Printf("%s is %s\n", cmd, path)
+			fmt.Fprintf(out, "%s is %s\n", cmd, path)
 			continue
 		}
 
-		fmt.Printf("%s: not found\n", cmd)
+		fmt.Fprintf(out, "%s: not found\n", cmd)
 	}
 	return nil
 }
 
-func handlePwd(args ...string) error {
+func handlePwd(out io.Writer, args ...string) error {
 	if len(args) > 0 {
 		return errors.New("too many arguments")
 	}
 
 	wd, _ := os.Getwd()
-	fmt.Println(wd)
+	fmt.Fprintln(out, wd)
 	return nil
 }
 
-func handleCd(args ...string) error {
+func handleCd(out io.Writer, args ...string) error {
 	if len(args) > 1 {
 		return errors.New("too many arguments")
 	}
@@ -136,9 +137,10 @@ func searchPathFor(executable string) string {
 	return ""
 }
 
-func runExecutable(path string, args ...string) error {
+func runExecutable(stdout io.Writer, stderr io.Writer, path string, args ...string) error {
 	cmd := exec.Command(path, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	cmd.Run()
+	return nil
 }

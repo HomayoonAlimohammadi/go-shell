@@ -11,21 +11,35 @@ func main() {
 	for {
 		printContext()
 
-		cmdLine, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		line, err := bufio.NewReader(os.Stdin).ReadString('\n')
 		if err != nil {
-			fmt.Printf("failed to read command: %s\n", err)
+			fmt.Fprintf(os.Stderr, "failed to read command: %s\n", err)
 		}
 
-		if len(cmdLine) == 0 || cmdLine == "\n" {
+		if len(line) == 0 || line == "\n" {
 			continue
 		}
 
-		cmdLine = cmdLine[:len(cmdLine)-1]
-		parts := splitLine(cmdLine)
+		line = line[:len(line)-1]
+
+		parts := splitLine(line)
+		// h, err := NewCommandHandler(parts)
+		// if err != nil {
+		// 	fmt.Fprintln(os.Stderr, err)
+		// }
+
+		// if err := h.Handle(); err != nil {
+		// 	fmt.Fprintln(os.Stderr, err)
+		// }
+
+		parts, redir := buildRedirector(parts)
 		cmd, args := parts[0], parts[1:]
-		if err := handleCmd(cmd, args...); err != nil {
-			fmt.Printf("%s: %s\n", cmdLine, err)
+
+		if err := handleCmd(redir.StdoutWriter(), redir.StderrWriter(), cmd, args...); err != nil {
+			fmt.Fprintln(redir.StderrWriter(), err)
 		}
+
+		redir.Close()
 	}
 }
 
@@ -60,7 +74,7 @@ func splitLine(l string) []string {
 			} else {
 				inSingleQuote = true
 			}
-		} else if string(b) == "\"" && !inSingleQuote {
+		} else if b == '"' && !inSingleQuote {
 			if inDoubleQuote {
 				inDoubleQuote = false
 				parts = append(parts, part)
@@ -77,5 +91,10 @@ func splitLine(l string) []string {
 			part += string(b)
 		}
 	}
+
+	if len(part) > 0 {
+		parts = append(parts, part)
+	}
+
 	return parts
 }
