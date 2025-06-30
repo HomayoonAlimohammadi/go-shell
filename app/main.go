@@ -31,8 +31,10 @@ func main() {
 			stdout := &writer{}
 			stderr := &writer{}
 
-			cmdParts, redir := splitPartsAndRedir(cmd, stdin, stdout, stderr)
-			h := NewCommandHandler(cmdParts, redir)
+			h, err := NewCommandHandler(cmd, stdin, stdout, stderr)
+			if err != nil {
+				fmt.Fprintln(stderr, err)
+			}
 
 			if err := h.Handle(); err != nil {
 				fmt.Fprintln(os.Stderr, err)

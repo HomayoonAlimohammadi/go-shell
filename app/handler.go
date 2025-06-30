@@ -19,6 +19,8 @@ var (
 		CmdExit: {},
 		CmdEcho: {},
 		CmdType: {},
+		CmdPwd:  {},
+		CmdCd:   {},
 	}
 )
 
@@ -30,20 +32,139 @@ const (
 	CmdCd   = "cd"
 )
 
+type redirOp int
+
+const (
+	RedirTypeUnknown redirOp = iota
+	RedirOpRedir
+	RedirOpAppend
+)
+
+type redirType int
+
+const (
+	RedirTypeNone redirType = iota
+	RedirTypeBoth
+	RedirTypeStdout
+	RedirTypeStderr
+)
+
 type commandHandler struct {
-	cmd   string
-	args  []string
-	redir *redirector
+	cmd       string
+	args      []string
+	redirType redirType
+	redirOp   redirOp
+	redirFile *os.File
+	stdin     io.Reader
+	stdout    io.Writer
+	stderr    io.Writer
 }
 
-func NewCommandHandler(parts []string, redir *redirector) *commandHandler {
+func NewCommandHandler(parts []string, stdin io.Reader, stdout, stderr io.Writer) (*commandHandler, error) {
+	var (
+		typ  redirType
+		op   redirOp
+		dest string
+	)
+
+	if len(parts) >= 3 {
+		p := parts[len(parts)-2]
+		dest = parts[len(parts)-1]
+		switch {
+		case p == ">>":
+			typ = RedirTypeStdout
+			op = RedirOpAppend
+			parts = parts[:len(parts)-2]
+		case p == ">":
+			typ = RedirTypeStdout
+			op = RedirOpRedir
+			parts = parts[:len(parts)-2]
+		case len(p) == 3 && strings.HasSuffix(p, ">>"):
+			switch string(p[0]) {
+			case "&":
+				typ = RedirTypeBoth
+				op = RedirOpAppend
+				parts = parts[:len(parts)-2]
+			case "1":
+				typ = RedirTypeStdout
+				op = RedirOpAppend
+				parts = parts[:len(parts)-2]
+			case "2":
+				typ = RedirTypeStderr
+				op = RedirOpAppend
+				parts = parts[:len(parts)-2]
+			}
+		case len(p) == 2 && strings.HasSuffix(p, ">"):
+			switch string(p[0]) {
+			case "&":
+				typ = RedirTypeBoth
+				op = RedirOpRedir
+				parts = parts[:len(parts)-2]
+			case "1":
+				typ = RedirTypeStdout
+				op = RedirOpRedir
+				parts = parts[:len(parts)-2]
+			case "2":
+				typ = RedirTypeStderr
+				op = RedirOpRedir
+				parts = parts[:len(parts)-2]
+			}
+		}
+	}
+
+	var file *os.File
+	switch op {
+	case RedirOpRedir:
+		var err error
+		file, err = os.OpenFile(dest, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open %q for write: %w", dest, err)
+		}
+	case RedirOpAppend:
+		var err error
+		file, err = os.OpenFile(dest, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open %q for write: %w", dest, err)
+		}
+	}
+
 	cmd, args := parts[0], parts[1:]
 
 	return &commandHandler{
-		cmd:   cmd,
-		args:  args,
-		redir: redir,
+		cmd:       cmd,
+		args:      args,
+		redirType: typ,
+		redirOp:   op,
+		redirFile: file,
+		stdin:     stdin,
+		stdout:    stdout,
+		stderr:    stderr,
+	}, nil
+}
+
+func (r *commandHandler) StdoutWriter() io.Writer {
+	if r.redirType == RedirTypeStdout || r.redirType == RedirTypeBoth {
+		return r.redirFile
 	}
+	return r.stdout
+}
+
+func (r *commandHandler) StderrWriter() io.Writer {
+	if r.redirType == RedirTypeStderr || r.redirType == RedirTypeBoth {
+		return r.redirFile
+	}
+	return r.stderr
+}
+
+func (r *commandHandler) StdinReader() io.Reader {
+	return r.stdin
+}
+
+func (r *commandHandler) Close() error {
+	if r.redirFile != nil {
+		return r.redirFile.Close()
+	}
+	return nil
 }
 
 func (h *commandHandler) Handle() error {
@@ -51,19 +172,7 @@ func (h *commandHandler) Handle() error {
 		fmt.Fprintln(h.StderrWriter(), err)
 	}
 
-	return h.redir.Close()
-}
-
-func (h *commandHandler) StdoutWriter() io.Writer {
-	return h.redir.StdoutWriter()
-}
-
-func (h *commandHandler) StderrWriter() io.Writer {
-	return h.redir.StderrWriter()
-}
-
-func (h *commandHandler) StdinReader() io.Reader {
-	return h.redir.StdinReader()
+	return h.Close()
 }
 
 func (h *commandHandler) handleCmd() error {
