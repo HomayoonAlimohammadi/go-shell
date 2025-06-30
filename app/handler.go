@@ -62,6 +62,10 @@ func (h *commandHandler) StderrWriter() io.Writer {
 	return h.redir.StderrWriter()
 }
 
+func (h *commandHandler) StdinReader() io.Reader {
+	return h.redir.StdinReader()
+}
+
 func (h *commandHandler) handleCmd() error {
 	switch h.cmd {
 	case CmdExit:
@@ -173,6 +177,7 @@ func (h *commandHandler) runExecutable(path string) error {
 	cmd := exec.Command(path, h.args...)
 	cmd.Stdout = h.StdoutWriter()
 	cmd.Stderr = h.StderrWriter()
+	cmd.Stdin = h.StdinReader()
 	cmd.Run()
 	return nil
 }

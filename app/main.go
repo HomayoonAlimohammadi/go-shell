@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -22,12 +24,25 @@ func main() {
 
 		line = line[:len(line)-1]
 
-		lineParts := splitLine(line)
-		cmdParts, redir := splitPartsAndRedir(lineParts)
-		h := NewCommandHandler(cmdParts, redir)
+		pipedCmds := splitCmds(line)
 
-		if err := h.Handle(); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+		var stdin io.Reader = os.Stdin
+		for i, cmd := range pipedCmds {
+			stdout := &writer{}
+			stderr := &writer{}
+
+			cmdParts, redir := splitPartsAndRedir(cmd, stdin, stdout, stderr)
+			h := NewCommandHandler(cmdParts, redir)
+
+			if err := h.Handle(); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
+
+			stdin = bytes.NewReader(stdout.Content())
+			if len(pipedCmds) == 1 || i == len(pipedCmds)-1 {
+				os.Stdout.Write(stdout.Content())
+			}
+			os.Stderr.Write(stderr.Content())
 		}
 
 	}
@@ -48,10 +63,11 @@ func printContext() {
 	fmt.Printf("%s@go-shell:%s$ ", user, wd)
 }
 
-func splitLine(l string) []string {
+func splitCmds(l string) [][]string {
 	var (
-		parts         []string
-		part          string
+		pipedCmds     [][]string
+		cmdParts      []string
+		cmdPart       string
 		inSingleQuote bool
 		inDoubleQuote bool
 	)
@@ -59,32 +75,43 @@ func splitLine(l string) []string {
 		if string(b) == "'" && !inDoubleQuote {
 			if inSingleQuote {
 				inSingleQuote = false
-				parts = append(parts, part)
-				part = ""
+				cmdParts = append(cmdParts, cmdPart)
+				cmdPart = ""
 			} else {
 				inSingleQuote = true
 			}
 		} else if b == '"' && !inSingleQuote {
 			if inDoubleQuote {
 				inDoubleQuote = false
-				parts = append(parts, part)
-				part = ""
+				cmdParts = append(cmdParts, cmdPart)
+				cmdPart = ""
 			} else {
 				inDoubleQuote = true
 			}
 		} else if b == ' ' && !inSingleQuote && !inDoubleQuote {
-			if len(part) > 0 {
-				parts = append(parts, part)
-				part = ""
+			if len(cmdPart) > 0 {
+				cmdParts = append(cmdParts, cmdPart)
+				cmdPart = ""
 			}
+		} else if b == '|' && !inSingleQuote && !inDoubleQuote {
+			if len(cmdPart) > 0 {
+				cmdParts = append(cmdParts, cmdPart)
+				cmdPart = ""
+			}
+			pipedCmds = append(pipedCmds, cmdParts)
+			cmdParts = []string{}
 		} else {
-			part += string(b)
+			cmdPart += string(b)
 		}
 	}
 
-	if len(part) > 0 {
-		parts = append(parts, part)
+	if len(cmdPart) > 0 {
+		cmdParts = append(cmdParts, cmdPart)
 	}
 
-	return parts
+	if len(cmdParts) > 0 {
+		pipedCmds = append(pipedCmds, cmdParts)
+	}
+
+	return pipedCmds
 }
